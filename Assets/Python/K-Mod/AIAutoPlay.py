@@ -11,6 +11,7 @@ import PyHelpers
 import Popup as PyPopup
 
 import ChangePlayer
+import time
 
 # globals
 gc = CyGlobalContext()
@@ -32,6 +33,9 @@ class AIAutoPlay :
 
         self.DefaultTurnsToAuto = 1
         
+        self.benchmarkStartTime = 0
+        self.numTurns = 0
+
         self.customEM = customEM
 
         self.customEM.addEventHandler( "kbdEvent", self.onKbdEvent )
@@ -41,6 +45,8 @@ class AIAutoPlay :
         self.customEM.addEventHandler( 'OnLoad', self.onGameLoad )
         self.customEM.addEventHandler( 'GameStart', self.onGameStart )
         self.customEM.addEventHandler( 'victory', self.onVictory )
+        self.customEM.addEventHandler( 'AutoPlayComplete', self.onAutoPlayComplete )
+        
 
         self.customEM.setPopupHandler( 7050, ["toAIChooserPopup",self.AIChooserHandler,self.blankHandler] )
         self.customEM.setPopupHandler( 7052, ["pickHumanPopup",self.pickHumanHandler,self.blankHandler] )
@@ -75,6 +81,7 @@ class AIAutoPlay :
         self.customEM.removeEventHandler( 'OnLoad', self.onGameLoad )
         self.customEM.removeEventHandler( 'GameStart', self.onGameStart )
         self.customEM.removeEventHandler( 'victory', self.onVictory )
+        self.customEM.addEventHandler( 'AutoPlayComplete', self.onAutoPlayComplete )
 
         self.customEM.setPopupHandler( 7050, ["toAIChooserPopup",self.blankHandler,self.blankHandler] )
         self.customEM.setPopupHandler( 7052, ["pickHumanPopup",self.blankHandler,self.blankHandler] )
@@ -290,8 +297,8 @@ class AIAutoPlay :
         screen = CyGInterfaceScreen( "MainInterface", CvScreenEnums.MAIN_INTERFACE )
         xResolution = screen.getXResolution()
         yResolution = screen.getYResolution()
-        popupSizeX = 400
-        popupSizeY = 250
+        popupSizeX = 500
+        popupSizeY = 300
 
         popup = PyPopup.PyPopup(7050,contextType = EventContextTypes.EVENTCONTEXT_ALL)
         popup.setPosition((xResolution - popupSizeX )/2, (yResolution-popupSizeY)/2-50)
@@ -302,6 +309,11 @@ class AIAutoPlay :
         popup.createPythonEditBox( '%d'%(self.DefaultTurnsToAuto), 'Number of turns to turn over to AI', 0)
         popup.setEditBoxMaxCharCount( 4, 2, 0 )
 
+        # In-game benchmark RNG seed input
+        popup.addSeparator()
+        popup.setBodyString(localText.getText("Enter seed (or leave empty to use the existing seed)", ()) )
+        popup.createPythonEditBox('', 'RNG seed', 1)
+        
         popup.addSeparator()
         popup.addButton("OK")
         popup.addButton(localText.getText("TXT_KEY_AIAUTOPLAY_CANCEL", ()))
@@ -313,14 +325,26 @@ class AIAutoPlay :
         if( popupReturn.getButtonClicked() == 1 ):  # if you pressed cancel
             return
 
-        numTurns = 0
+        self.numTurns = 0
         if( popupReturn.getEditBoxString(0) != '' ) :
-            numTurns = int( popupReturn.getEditBoxString(0) )
+            self.numTurns = int( popupReturn.getEditBoxString(0) )
+            self.benchmarkStartTime = time.clock()     
+        if( popupReturn.getEditBoxString(1) != '' ) :
+            seed = int(popupReturn.getEditBoxString(1))                
+            gc.getGame().getSorenRand().reseed(seed)    
+        if( self.numTurns > 0 ) :
+            if( self.LOG_DEBUG ) : CyInterface().addImmediateMessage("Fully automating for %d turns"%(self.numTurns),"")
+            game.setAIAutoPlay(self.numTurns)
 
-        if( numTurns > 0 ) :
-            if( self.LOG_DEBUG ) : CyInterface().addImmediateMessage("Fully automating for %d turns"%(numTurns),"")
-            game.setAIAutoPlay(numTurns)
+    def onAutoPlayComplete(self, argsList):    
 
+        benchmarkEndTime = time.clock()
+        timeElapsed = benchmarkEndTime - self.benchmarkStartTime	
+        popupInfo = PyPopup.PyPopup(game.getActivePlayer())
+        popupInfo.setHeaderString('test')
+        popupInfo.setBodyString('Benchmark complete! Elapsed time: ' + str(timeElapsed) + ' seconds. turns: ' + str(self.numTurns))	
+        popupInfo.launch(true, PopupStates.POPUPSTATE_QUEUED)
+        
 ########################## Utility functions ###########################################
             
 def doRefortify( iPlayer ) :

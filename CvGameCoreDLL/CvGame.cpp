@@ -4597,9 +4597,19 @@ void CvGame::setAIAutoPlay(int iNewValue) {
 	setAIAutoPlayBulk(iNewValue);
 }
 void CvGame::setAIAutoPlayBulk(int iNewValue, bool bChangePlayerStatus)
-{	// advc.127
+{	
+	// advc.127
 	m_iAIAutoPlay = std::max(0, iNewValue);
 	// <advc.127>
+
+	if (m_iAIAutoPlay == 0)
+	{
+		// Required by the benchmark to be informed when autoplay has completed
+		CyArgsList pyArgs;
+		pyArgs.add(getTurnSlice());
+		CvEventReporter::getInstance().genericEvent("AutoPlayComplete", pyArgs.makeFunctionArgs());
+	}
+
 	if(!bChangePlayerStatus)
 		return; // </advc.127>
 /************************************************************************************************/
