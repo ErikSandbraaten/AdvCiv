@@ -12143,7 +12143,7 @@ bool CvUnitAI::AI_guardFort(bool bSearch)
 		return false; // </advc.107>
 	if (plot()->getOwnerINLINE() == getOwnerINLINE())
 	{
-		ImprovementTypes eImprovement = plot()->getImprovementType();
+		const ImprovementTypes eImprovement = plot()->getImprovementType();
 		if (eImprovement != NO_IMPROVEMENT)
 		{
 			const CvImprovementInfo& kImprovement = GC.getImprovementInfo(eImprovement);
@@ -12179,10 +12179,12 @@ bool CvUnitAI::AI_guardFort(bool bSearch)
 		{
 			if (pLoopPlot->getOwnerINLINE() == getOwnerINLINE())
 			{
-				ImprovementTypes eImprovement = pLoopPlot->getImprovementType();
+				const ImprovementTypes eImprovement = pLoopPlot->getImprovementType();
 				if (eImprovement != NO_IMPROVEMENT)
 				{
-					if (GC.getImprovementInfo(eImprovement).isActsAsCity())
+					const CvImprovementInfo& kImprovement = GC.getImprovementInfo(eImprovement);
+
+					if (kImprovement.isActsAsCity() && kImprovement.getDefenseModifier() > 0)
 					{
 						int iValue = AI_getPlotDefendersNeeded(pLoopPlot, 0);
 
