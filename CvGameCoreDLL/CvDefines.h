@@ -5,7 +5,9 @@
 
 // defines.h
 
-#define _USRDLL /* advc.make: Normally set by the makefile. However, then the
+#ifndef _USRDLL
+#define _USRDLL 
+#endif /* advc.make: Normally set by the makefile. However, then the
                    Visual Studio editor can't find dozens of inlined functions,
                    and puts a red line under each call to them. */
 
