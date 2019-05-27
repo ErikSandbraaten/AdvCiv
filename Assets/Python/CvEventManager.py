@@ -347,6 +347,47 @@ class CvEventManager:
 					popupInfo.addPopup(iPlayer)
 
 		CvAdvisorUtils.resetNoLiberateCities()
+        
+        #### deap sea start ####
+		for i in range(CyMap().numPlots()):
+			iPlot = CyMap().plotByIndex(i)
+			if iPlot.getTerrainType() == gc.getInfoTypeForString("TERRAIN_OCEAN"):
+				StartX=iPlot.getX()-1
+				EndX=iPlot.getX()+2
+				StartY=iPlot.getY()-1
+				EndY=iPlot.getY()+2
+				bTrue = True
+				for j in range(StartX, EndX):
+					for k in range(StartY,EndY):
+						lPlot = CyMap().plot(j,k)
+						if lPlot.isNone():continue
+						if lPlot.getTerrainType() == gc.getInfoTypeForString("TERRAIN_COAST"):
+							bTrue = False
+							break
+				if (bTrue == True):
+					iPlot.setTerrainType(gc.getInfoTypeForString("TERRAIN_DEEP_OCEAN"), False, False)
+                    
+        # Second "band" of ocean. TODO: Implement a recursive version to allow N bands
+		oceanPlots = []
+		for i in range(CyMap().numPlots()):
+			iPlot = CyMap().plotByIndex(i)
+			if iPlot.getTerrainType() == gc.getInfoTypeForString("TERRAIN_DEEP_OCEAN"):
+				StartX=iPlot.getX()-1
+				EndX=iPlot.getX()+2
+				StartY=iPlot.getY()-1
+				EndY=iPlot.getY()+2
+				for j in range(StartX, EndX):
+					for k in range(StartY,EndY):
+						lPlot = CyMap().plot(j,k)
+						if lPlot.isNone():continue
+						if lPlot.getTerrainType() == gc.getInfoTypeForString("TERRAIN_OCEAN"):
+ 							oceanPlots.append(iPlot)
+                        
+        # TODO: Filter out duplicates
+		for plot in oceanPlots:
+			plot.setTerrainType(gc.getInfoTypeForString("TERRAIN_OCEAN"), False, False)
+        ### deap sea end ###
+
 																	
 	def onGameEnd(self, argsList):
 		'Called at the End of the game'
