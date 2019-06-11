@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<Civ4GameText>
+    <TEXT>
+        <Tag>TXT_KEY_TECH_TRADE</Tag>
+        <English>Trade</English>
+        <French>
+            <Text>Échanges</Text>
+            <Gender>Female</Gender>
+            <Plural>0</Plural>
+        </French>
+        <German>
+            <Text>Handel</Text>
+            <Gender>Male</Gender>
+            <Plural>0</Plural>
+        </German>
+        <Italian>
+            <Text>Valuta</Text>
+            <Gender>Female</Gender>
+            <Plural>0</Plural>
+        </Italian>
+        <Spanish>
+            <Text>Moneda</Text>
+            <Gender>Female</Gender>
+            <Plural>0</Plural>
+        </Spanish>
+    </TEXT>
+    <TEXT>
+        <Tag>TXT_KEY_TECH_TRADE_PEDIA</Tag>
+        <English>[TAB]When tribes met they often traded goods like furs to pottery, fish to deer meat etc. Trading goods eventually led to mutually used currencies.</English>
+    </TEXT>
+    <TEXT>
+        <Tag>TXT_KEY_TECH_TRADE_STRATEGY</Tag>
+        <English>[COLOR_TECH_TEXT]Trade[COLOR_REVERT] allows you to build the [COLOR_BUILDING_TEXT]Bazaar[COLOR_REVERT]. It also allows you to train [COLOR_UNIT_TEXT]Trade Caravans[COLOR_REVERT].</English>
+    </TEXT>
+    <TEXT>
+        <Tag>TXT_KEY_TECH_TRADE_QUOTE</Tag>
+        <English>"He who wants to barter, usually knows what is best for him." - Ethiopian Proverb</English>
+        <French>[SPACE]"Celui qui veut faire du troc, sait généralement ce qui est mieux pour lui." - Proverbe Ethiopien</French>
+        <Spanish>[SPACE]"Aquel que quiere regatear, suele saber qué le conviene." - Proverbio etiopiano</Spanish>
+        <German>[SPACE]"Er, der Tauschhandel betreiben will, weiß für gewöhnlich was am besten für ihn ist." - Ethiopisches Sprichwort</German>
+        </TEXT>
+ </Civ4GameText>

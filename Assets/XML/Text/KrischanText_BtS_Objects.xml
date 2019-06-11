@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- edited with XMLSPY v2004 rel. 2 U (http://www.xmlspy.com) by lcollins (Firaxis Games) -->
+<!-- Sid Meier's Civilization 4 -->
+<!-- Copyright Firaxis Games 2005 -->
+<!-- -->
+<!-- Game Text - New -->
+<Civ4GameText xmlns="http://www.firaxis.com">
+	<!--Please place any new text entries into this file-->
+	<TEXT>
+		<Tag>TXT_KEY_TERRAIN_DEEP_OCEAN</Tag>
+		<English>Deep Ocean</English>
+		<French>Deep Ocean</French>
+		<German>Tiefsee</German>
+		<Italian>Deep Ocean</Italian>
+		<Spanish>Deep Ocean</Spanish>
+	</TEXT>
+</Civ4GameText>
