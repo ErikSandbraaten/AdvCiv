@@ -9,6 +9,7 @@
 #include "LinkedList.h"
 #include <bitset>
 #include <set> // advc.300
+//#include <boost/array.hpp>
 
 // needs to have dll-interface to be used by clients of class
 #pragma warning( disable: 4251 )
@@ -697,6 +698,8 @@ protected:
 
 	static bool m_bAllFog; // advc.706
 
+	char* m_paAttackLimit;
+
 	void doFeature();
 	void doCulture();
 
@@ -724,6 +727,37 @@ public:
 /****************************************************************************/
 /* BETTER_BTS_AI_MOD                       END                              */
 /****************************************************************************/
+
+	char* getAttackLimit() const;
+
+	int canAttackFrom(const CvPlot* targetPlot) const;
+
+	void updateAttackLimit(const CvPlot* targetPlot);
+
+	// Called at the start of the plot's turn
+	// Used to update the defender set
+	// when a unit dies or if another unit is added (moves to) the plot
+	void updateDefenderSet(/*TeamTypes eOurTeam*/);
+
+	// TODO: Consider a more efficient version that compares all units on a given plot
+	bool isUnitInDefenderSet(CvUnit* pUnit) const;
+
+protected:
+
+	//m_paauDefenderSet = new std::vector<CvUnit*>[MAX_PLAYERS];
+
+	// this works
+	//boost::array<int, 3> test;
+
+	std::vector<CvUnit*> m_defenderSet;
+
+	// Note: Defender set is shared by all enemies on the player on a given tile
+	//std::vector<CvUnit*> m_defenderSet;
+
+
+	// Erik: Attacker Limit per turn against this plot
+	// Limit is per adjacent plot and is reset every turn
+	// TODO: Should probably just be a char to save memory
 };
 
 #endif

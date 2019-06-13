@@ -577,6 +577,12 @@ void CvUnit::kill(bool bDelay, PlayerTypes ePlayer)
 		}
 	}
 
+	if (pPlot->isUnitInDefenderSet(this))
+	{
+		// We may need to ensure that another defender becomes available
+		pPlot->updateDefenderSet();
+	}
+
 	if (ePlayer != NO_PLAYER)
 	{
 		CvEventReporter::getInstance().unitKilled(this, ePlayer);
@@ -2331,7 +2337,17 @@ bool CvUnit::isUnowned() const {
 		return false;
 	if(isAnimal() || m_pUnitInfo->isHiddenNationality())
 		return true;
-	CvCity* pPlotCity = plot()->getPlotCity();
+	
+	// Erik: bug fix, the current plot could be NULL	
+	const CvPlot* pPlot = plot();
+	if (pPlot == NULL)
+	{
+		// If null, the plot can't be owned
+		return false;
+	}
+
+	CvCity* pPlotCity = pPlot->getPlotCity();
+	
 	if(pPlotCity != NULL && pPlotCity->isBarbarian())
 		return true;
 	return false;
@@ -2727,6 +2743,37 @@ bool CvUnit::willRevealByMove(const CvPlot* pPlot) const
 	return false;
 }
 
+
+/*
+
+this is more efficient
+
+ABC
+DxE
+FGH
+
+
+x is pPlot (the defender plot)
+A..H is the intereger 0..7
+
+Plot to offset mapping:
+
+A -> 0
+B -> 1
+C -> 2
+D -> 3
+E -> 4
+F -> 5
+G -> 6
+h -> 7
+
+plotRelativeOffset
+
+
+
+*/
+
+
 /*  K-Mod. I've rearranged a few things to make the function slightly faster,
 	and added "bAssumeVisible" which signals that we should check for units on
 	the plot regardless of whether we can actually see. */
@@ -2737,6 +2784,20 @@ bool CvUnit::canMoveInto(const CvPlot* pPlot, bool bAttack, bool bDeclareWar, bo
 
 	FAssertMsg(pPlot != NULL, "Plot is not assigned a valid value");
 
+	if (bAttack)
+	{
+		const int iAttackLimit = plot()->canAttackFrom(pPlot);
+
+		// Erik: Check against the attacking limit first
+		// 0 means that combat width has been exceeded, -1 would mean a non-adjacent plot and should
+		// not be part of this check since the AI uses this function for other purposes than
+		// checking adjacent plots
+		if (iAttackLimit == 0)
+		{
+			return false;
+		}
+	}
+	
 	if (atPlot(pPlot))
 	{
 		return false;
@@ -3146,6 +3207,10 @@ void CvUnit::attack(CvPlot* pPlot, bool bQuick)
 	setAttackPlot(pPlot, false);
 
 	updateCombat(bQuick);
+
+	// Update the attack limit counter based on the plot that
+	// the unit attacked from
+	pPlot->updateAttackLimit(plot());
 }
 
 void CvUnit::fightInterceptor(const CvPlot* pPlot, bool bQuick)
@@ -9031,7 +9096,7 @@ bool CvUnit::canFight() const
 	return (baseCombatStr() > 0);
 }
 
-
+// TODO: Move the attack limit check here
 bool CvUnit::canAttack() const
 {
 	if (!canFight())
@@ -10711,8 +10776,18 @@ void CvUnit::setXY(int iX, int iY, bool bGroup, bool bUpdate, bool bShow, bool b
 	if (pNewPlot != NULL)
 	{
 		gDLL->getEntityIFace()->updateEnemyGlow(getUnitEntity());
+	
 	}
 
+	// If a unit has died after combat pNewPlot is null
+	// in that case we should make another defender available
+	// 
+	
+	if (pOldPlot != NULL)
+	{
+		pOldPlot->updateDefenderSet();
+	}
+	
 	// report event to Python, along with some other key state
 	CvEventReporter::getInstance().unitSetXY(pNewPlot, this);
 }

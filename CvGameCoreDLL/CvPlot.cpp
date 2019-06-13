@@ -172,6 +172,8 @@ void CvPlot::uninit()
 	}
 
 	m_units.clear();
+
+	SAFE_DELETE_ARRAY(m_paAttackLimit);
 }
 
 // FUNCTION: reset()
@@ -251,6 +253,8 @@ void CvPlot::reset(int iX, int iY, bool bConstructorCall)
 	// <advc.tsl>
 	if(!bConstructorCall)
 		m_iLatitude = calculateLatitude(); // </advc.tsl>
+
+	m_paAttackLimit = NULL;
 }
 
 
@@ -429,6 +433,16 @@ void CvPlot::doTurn()
 	doCulture();
 	verifyUnitValidPlot();
 
+	if (m_paAttackLimit != NULL)
+	{
+		// Erik: Reset attack limit
+		for (int i = 0; i < NUM_DIRECTION_TYPES; i++)
+		{
+			m_paAttackLimit[i] = 0;
+		}
+
+	}
+
 	/*
 	if (!isOwned())
 	{
@@ -450,6 +464,8 @@ void CvPlot::doTurn()
 	}
 #endif
 	// XXX
+
+	updateDefenderSet();
 }
 
 
@@ -2732,6 +2748,7 @@ int CvPlot::getFeatureProduction(BuildTypes eBuild, TeamTypes eTeam, CvCity** pp
 }
 
 
+# if 0
 CvUnit* CvPlot::getBestDefender(PlayerTypes eOwner, PlayerTypes eAttackingPlayer,
 		CvUnit const* pAttacker, bool bTestAtWar, bool bTestPotentialEnemy,
 		bool bTestCanMove, bool bVisible /* advc.028 */) const
@@ -2792,6 +2809,65 @@ CvUnit* CvPlot::getBestDefender(PlayerTypes eOwner, PlayerTypes eAttackingPlayer
 /************************************************************************************************/
 /* BETTER_BTS_AI_MOD                       END                                                  */
 /************************************************************************************************/
+
+	return pBestUnit;
+}
+#endif 
+
+CvUnit* CvPlot::getBestDefender(PlayerTypes eOwner, PlayerTypes eAttackingPlayer,
+	CvUnit const* pAttacker, bool bTestAtWar, bool bTestPotentialEnemy,
+	bool bTestCanMove, bool bVisible /* advc.028 */) const
+{
+	CvUnit* pLoopUnit;
+	CvUnit* pBestUnit = NULL;
+	/************************************************************************************************/
+	/* BETTER_BTS_AI_MOD                      02/21/10                                jdog5000      */
+	/*                                                                                              */
+	/* Lead From Behind                                                                             */
+	/************************************************************************************************/
+	// From Lead From Behind by UncutDragon
+	int iBestUnitRank = -1;
+
+	for (int i=0; i< m_defenderSet.size(); i++)
+	{
+		pLoopUnit = m_defenderSet[i];
+		
+		if ((eOwner == NO_PLAYER) || (pLoopUnit->getOwnerINLINE() == eOwner))
+		{
+			if (!bVisible || // advc.028
+				eAttackingPlayer == NO_PLAYER ||
+				!pLoopUnit->isInvisible(TEAMID(eAttackingPlayer),
+					true)) // advc.028
+			{
+				if (!bTestAtWar || eAttackingPlayer == NO_PLAYER || pLoopUnit->isEnemy(GET_PLAYER(eAttackingPlayer).getTeam(), this) || (NULL != pAttacker && pAttacker->isEnemy(GET_PLAYER(pLoopUnit->getOwnerINLINE()).getTeam(), this)))
+				{
+					if (!bTestPotentialEnemy || (eAttackingPlayer == NO_PLAYER) || pLoopUnit->isPotentialEnemy(GET_PLAYER(eAttackingPlayer).getTeam(), this) || (NULL != pAttacker && pAttacker->isPotentialEnemy(GET_PLAYER(pLoopUnit->getOwnerINLINE()).getTeam(), this)))
+					{
+						if (!bTestCanMove || (pLoopUnit->canMove() && !(pLoopUnit->isCargo())))
+						{
+							if ((pAttacker == NULL) || (pAttacker->getDomainType() != DOMAIN_AIR) || (pLoopUnit->getDamage() < pAttacker->airCombatLimit()))
+							{
+								// UncutDragon
+								// original
+								//if (pLoopUnit->isBetterDefenderThan(pBestUnit, pAttacker))
+								// modified (added extra parameter)
+								if (pLoopUnit->isBetterDefenderThan(pBestUnit,
+									pAttacker, &iBestUnitRank,
+									bVisible)) // advc.061
+											   // /UncutDragon
+								{
+									pBestUnit = pLoopUnit;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	/************************************************************************************************/
+	/* BETTER_BTS_AI_MOD                       END                                                  */
+	/************************************************************************************************/
 
 	return pBestUnit;
 }
@@ -9232,6 +9308,14 @@ void CvPlot::read(FDataStreamBase* pStream)
 	}
 
 	m_units.Read(pStream);
+
+	SAFE_DELETE_ARRAY(m_paAttackLimit);
+	pStream->Read(&iCount);
+	if (iCount > 0)
+	{
+		m_paAttackLimit = new char[iCount];
+		pStream->Read(iCount, m_paAttackLimit);
+	}
 }
 
 //
@@ -9472,6 +9556,16 @@ void CvPlot::write(FDataStreamBase* pStream)
 	}
 
 	m_units.Write(pStream);
+
+	if (NULL == m_paAttackLimit)
+	{
+		pStream->Write((int)0);
+	}
+	else
+	{
+		pStream->Write(static_cast<int>(NUM_DIRECTION_TYPES));
+		pStream->Write(static_cast<int>(NUM_DIRECTION_TYPES), m_paAttackLimit);
+	}
 }
 
 void CvPlot::setLayoutDirty(bool bDirty)
@@ -10547,6 +10641,7 @@ bool CvPlot::hasDefender(bool bCheckCanAttack, PlayerTypes eOwner, PlayerTypes e
 	// there are no defenders
 	return false;
 }
+
 /************************************************************************************************/
 /* BETTER_BTS_AI_MOD                       END                                                  */
 /************************************************************************************************/
@@ -10614,3 +10709,161 @@ bool CvPlot::isConnectSea() const {
 	/* Checking for a connection between different water areas would be easy enough
 	   to do, but shortening paths within a water area can also be valuable. */
 } // </advc.121>
+
+char* CvPlot::getAttackLimit() const
+{
+	return m_paAttackLimit;
+}
+
+// Erik: This function does not need any of the members so it shoud'ld
+// be a freestanding function!
+// Returns the available attack capacity for the target plot
+int CvPlot::canAttackFrom(const CvPlot * pTargetPlot) const
+{
+	// Erik: We need to determine the relative position of
+	// the attacking to the defending plot so that we can
+	// apply the attack limit
+	int iDirectionOffset = -1;
+
+	// Erik: yes, this is inefficient but it's a quick solution for now
+	for (int i = 0; i < NUM_DIRECTION_TYPES; i++)
+	{
+		const CvPlot* pLoopPlot = plotDirection(pTargetPlot->getX_INLINE(), pTargetPlot->getY_INLINE(), ((DirectionTypes)i));
+
+		if (pLoopPlot == this)
+		{
+			iDirectionOffset = i;
+			break;
+		}
+	}
+
+	
+	if (iDirectionOffset == -1)
+	{
+		// The target plot may not be adjacent, bail out
+		return -1;
+	}
+
+	// TODO: We need to reset the limit on the start of every turn!
+	const int iLimit = pTargetPlot->getAttackLimit()[iDirectionOffset];
+	
+	const int iAttackerLimit = 8;
+
+	if (iLimit == iAttackerLimit)
+	{
+		// We've reached the attacking limit
+		return 0;
+	}
+	else
+	{
+		return iAttackerLimit - iLimit;
+	}
+}
+
+void CvPlot::updateAttackLimit(const CvPlot* targetPlot)
+{
+	int iDirectionOffset = -1;
+
+	// Erik: yes, this is inefficient but it's a quick solution for now
+	for (int i = 0; i < NUM_DIRECTION_TYPES; i++)
+	{
+		CvPlot* pLoopPlot = plotDirection(getX_INLINE(), getY_INLINE(), ((DirectionTypes)i));
+
+		if (pLoopPlot == targetPlot)
+		{
+			iDirectionOffset = i;
+			break;
+		}
+	}
+	
+	// TODO: Assert on iDirectionOffset == -1
+
+	// TODO: Assert that we are at or below the limit
+	const int iLimit = getAttackLimit()[iDirectionOffset];
+
+	// Increment attack counter
+	getAttackLimit()[iDirectionOffset]++;
+}
+
+namespace
+{
+	// "Back-ported" from C++11
+	template<class ForwardIt, class T>
+	void iota(ForwardIt first, ForwardIt last, T value)
+	{
+		while (first != last) {
+			*first++ = value;
+			++value;
+		}
+	}
+
+	// Erik: Cheesy Adapter\wrapper
+	int defenderSetRandomization(int i) { return GC.getGameINLINE().getMapRand().get(i); }
+}
+
+// Populate defender set on this tile that we are at war against
+// TODO: We need a function to update the set if war against a team
+// happens after plot doTurn
+void CvPlot::updateDefenderSet(/*TeamTypes eOurTeam*/)
+{
+	if (getNumUnits() <= 0)
+		return;
+
+	m_defenderSet.clear();
+
+	std::vector<CvUnit*> units;
+
+	// First we add all the enemy units on the plot to
+	// a temporary list
+
+	CLLNode<IDInfo>* pUnitNode = headUnitNode();
+
+	while (pUnitNode != NULL)
+	{
+		CvUnit* pLoopUnit = ::getUnit(pUnitNode->m_data);
+		
+		//if (pLoopUnit->isEnemy(eOurTeam))
+		{
+			units.push_back(pLoopUnit);
+		}
+
+		pUnitNode = nextUnitNode(pUnitNode);
+	}
+
+	const int iDefenderSetLimit = 4;
+
+	if (units.size() <= iDefenderSetLimit)
+	{
+		// All present defenders are added to the set
+		m_defenderSet.assign(units.begin(), units.end());
+	}
+	else
+	{
+		// Choose a subset of the present defenders and add those to the defender set
+		std::vector<int> indices(units.size());
+		iota(indices.begin(), indices.end(), 0);
+		std::random_shuffle(indices.begin(), indices.end(), defenderSetRandomization);
+
+		// We then pick the first M indices of units to represent the limited defender set
+		for (int i = 0; i < iDefenderSetLimit; i++)
+		{
+			m_defenderSet.push_back(units[indices[i]]);
+		}
+	}
+}
+
+bool CvPlot::isUnitInDefenderSet(CvUnit * pUnit) const
+{
+	for (int i = 0; i < m_defenderSet.size(); i++)
+	{
+		// TODO: We should perhaps implement and use == operator ?
+		if (m_defenderSet[i] == pUnit)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
