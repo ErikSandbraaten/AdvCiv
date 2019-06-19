@@ -56,6 +56,8 @@ CvPlot::CvPlot()
 
 	m_szScriptData = NULL;
 
+	m_aiAttackLimit = new char[8]();
+
 	reset(0, 0, true);
 }
 
@@ -67,6 +69,8 @@ CvPlot::~CvPlot()
 	SAFE_DELETE_ARRAY(m_aiYield);
 	// BETTER_BTS_AI_MOD, Efficiency (plot danger cache), 08/21/09, jdog5000:
 	SAFE_DELETE_ARRAY(m_abBorderDangerCache);
+
+	SAFE_DELETE_ARRAY(m_aiAttackLimit);
 }
 
 void CvPlot::init(int iX, int iY)
@@ -137,6 +141,13 @@ void CvPlot::uninit()
 	}
 
 	m_units.clear();
+
+	/*
+	if (NULL != m_aiAttackLimit)
+	{
+		SAFE_DELETE_ARRAY(m_aiAttackLimit);
+	}
+	*/
 }
 
 // FUNCTION: reset()
@@ -204,6 +215,11 @@ void CvPlot::reset(int iX, int iY, bool bConstructorCall)
 	// <advc.tsl>
 	if(!bConstructorCall)
 		m_iLatitude = calculateLatitude(); // </advc.tsl>
+	
+	for (iI = 0; iI < NUM_DIRECTION_TYPES; ++iI)
+	{
+		m_aiAttackLimit[iI] = 0;
+	}
 }
 
 
@@ -381,6 +397,16 @@ void CvPlot::doTurn()
 	doFeature();
 	doCulture();
 	verifyUnitValidPlot();
+
+	//if (m_paAttackLimit != NULL)
+	{
+		// Erik: Reset attack limit
+		for (int i = 0; i < NUM_DIRECTION_TYPES; i++)
+		{
+			m_aiAttackLimit[i] = 0;
+		}
+
+	}
 
 	/*
 	if (!isOwned())
@@ -8926,6 +8952,14 @@ void CvPlot::read(FDataStreamBase* pStream)
 	}
 
 	m_units.Read(pStream);
+
+	SAFE_DELETE_ARRAY(m_aiAttackLimit);
+	pStream->Read(&iCount);
+	if (iCount > 0)
+	{
+		m_aiAttackLimit = new char[iCount];
+		pStream->Read(iCount, m_aiAttackLimit);
+	}
 }
 
 // write object to a stream
@@ -9164,6 +9198,16 @@ void CvPlot::write(FDataStreamBase* pStream)
 	}
 
 	m_units.Write(pStream);
+
+	if (NULL == m_aiAttackLimit)
+	{
+		pStream->Write((int)0);
+	}
+	else
+	{
+		pStream->Write(static_cast<int>(NUM_DIRECTION_TYPES));
+		pStream->Write(static_cast<int>(NUM_DIRECTION_TYPES), m_aiAttackLimit);
+	}
 }
 
 
@@ -10197,3 +10241,81 @@ bool CvPlot::isConnectSea() const {
 	/* Checking for a connection between different water areas would be easy enough
 	   to do, but shortening paths within a water area can also be valuable. */
 } // </advc.121>
+
+char* CvPlot::getAttackLimit() const
+{
+	return m_aiAttackLimit;
+}
+
+// Erik: This function does not need any of the members so it shoud'ld
+// be a freestanding function!
+// Returns the available attack capacity for the target plot
+int CvPlot::canAttackFrom(const CvPlot * pTargetPlot) const
+{
+	// Erik: We need to determine the relative position of
+	// the attacking to the defending plot so that we can
+	// apply the attack limit
+	int iDirectionOffset = -1;
+
+	// Erik: yes, this is inefficient but it's a quick solution for now
+	for (int i = 0; i < NUM_DIRECTION_TYPES; i++)
+	{
+		const CvPlot* pLoopPlot = plotDirection(pTargetPlot->getX_INLINE(), pTargetPlot->getY_INLINE(), ((DirectionTypes)i));
+
+		if (pLoopPlot == this)
+		{
+			iDirectionOffset = i;
+			break;
+		}
+	}
+
+	
+	if (iDirectionOffset == -1)
+	{
+		// The target plot may not be adjacent, bail out
+		return -1;
+	}
+
+	// TODO: We need to reset the limit on the start of every turn!
+	const int iLimit = pTargetPlot->getAttackLimit()[iDirectionOffset];
+	
+	const int iAttackerLimit = 8;
+
+	if (iLimit == iAttackerLimit)
+	{
+		// We've reached the attacking limit
+		return 0;
+	}
+	else
+	{
+		return iAttackerLimit - iLimit;
+	}
+}
+
+void CvPlot::updateAttackLimit(const CvPlot* targetPlot)
+{
+	int iDirectionOffset = -1;
+
+	// Erik: yes, this is inefficient but it's a quick solution for now
+	for (int i = 0; i < NUM_DIRECTION_TYPES; i++)
+	{
+		CvPlot* pLoopPlot = plotDirection(getX_INLINE(), getY_INLINE(), ((DirectionTypes)i));
+
+		if (pLoopPlot == targetPlot)
+		{
+			iDirectionOffset = i;
+			break;
+		}
+	}
+	
+	// TODO: Assert on iDirectionOffset == -1
+
+	// TODO: Assert that we are at or below the limit
+	const int iLimit = getAttackLimit()[iDirectionOffset];
+
+	// Increment attack counter
+	getAttackLimit()[iDirectionOffset]++;
+}
+
+
+

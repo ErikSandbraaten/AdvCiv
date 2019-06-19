@@ -2716,6 +2716,37 @@ bool CvGameTextMgr::setCombatPlotHelp(CvWStringBuffer &szString, CvPlot* pPlot)
 	if (pDefender == NULL || !pDefender->canDefend(pPlot) || !pAttacker->canAttack(*pDefender))
 		return false;
 
+	// Erik: Attack limit
+	if (pAttacker)
+	{
+		// We require a valid attacker and a defender
+
+		const CvPlot* targetPlot = gDLL->getInterfaceIFace()->getSelectionPlot();
+
+		if (targetPlot != pPlot)
+		{
+			const int iAttackLimit = targetPlot->canAttackFrom(pPlot);
+
+			// Ignore non adjacent plots
+			// TODO: this is not correct, >2 move units may not be adjacent when hoovering
+			if (iAttackLimit != -1)
+			{
+				if (iAttackLimit > 0)
+				{
+					szString.append(gDLL->getText("Attack is possible. Remaining attack width capacity: "));
+					szTempBuffer.Format(L"%d", iAttackLimit);
+					szString.append(/*gDLL->getText("TXT_KEY_COMBAT_PLOT_ODDS_RETREAT"*/szTempBuffer.GetCString());
+					szString.append(NEWLINE);
+				}
+				else
+				{
+					szString.append(gDLL->getText("Attack width capacity limit reached!"));
+					szString.append(NEWLINE);
+				}
+			}
+		}
+	}
+
 	// <advc.048>
 	bool bBestOddsHelp = false;
 	if(!bMaxSurvival && GC.getDefineINT("GROUP_ATTACK_BEST_ODDS_HELP") > 0) {

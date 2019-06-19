@@ -577,6 +577,12 @@ public:
 	// advc.003h: Adopted from We The People mod (devolution)
 	static void setMaxVisibilityRangeCache();
 
+	// Erik: Attacker Limit per turn against this plot
+	// Limit is per adjacent plot and is reset every turn
+	char* getAttackLimit() const;
+	int canAttackFrom(const CvPlot* targetPlot) const;
+	void updateAttackLimit(const CvPlot* targetPlot);
+
 protected:
 
 	short m_iX;
@@ -664,6 +670,8 @@ protected:
 	std::vector<CvSymbol*> m_symbols;
 
 	static bool m_bAllFog; // advc.706
+
+	char* m_aiAttackLimit;
 
 	void doFeature();
 	void doCulture();

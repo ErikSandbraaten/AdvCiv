@@ -2661,6 +2661,20 @@ bool CvUnit::canMoveInto(const CvPlot* pPlot, bool bAttack, bool bDeclareWar, bo
 
 	FAssertMsg(pPlot != NULL, "Plot is not assigned a valid value");
 
+	if (bAttack)
+	{
+		const int iAttackLimit = plot()->canAttackFrom(pPlot);
+
+		// Erik: Check against the attacking limit first
+		// 0 means that combat width has been exceeded, -1 would mean a non-adjacent plot and should
+		// not be part of this check since the AI uses this function for other purposes than
+		// checking adjacent plots
+		if (iAttackLimit == 0)
+		{
+			return false;
+		}
+	}
+	
 	if (atPlot(pPlot))
 	{
 		return false;
@@ -3047,6 +3061,10 @@ void CvUnit::attack(CvPlot* pPlot, bool bQuick)
 	setAttackPlot(pPlot, false);
 
 	updateCombat(bQuick);
+
+	// Update the attack limit counter based on the plot that
+	// the unit attacked from
+	pPlot->updateAttackLimit(plot());
 }
 
 void CvUnit::fightInterceptor(const CvPlot* pPlot, bool bQuick)
